@@ -1,2 +1,2 @@
-# IPK-Projekt-2
+# IPK Projekt 2
 
