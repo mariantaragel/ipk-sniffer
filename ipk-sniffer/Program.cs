@@ -15,19 +15,24 @@ internal class Program
         };
         interfaceOption.AddAlias("-i");
 
+        var numOption = new Option<int>(name: "-n", description: "Number of packets to display", getDefaultValue: () => 1)
+        {
+            ArgumentHelpName = "num"
+        };
+
         var rootCommand = new RootCommand("Network sniffer");
         rootCommand.AddOption(interfaceOption);
+        rootCommand.AddOption(numOption);
 
-        rootCommand.SetHandler(interfaceOptionValue =>
+        rootCommand.SetHandler((interfaceOptionValue, numOptionValue) =>
         {
             if (interfaceOptionValue == null) {
                 NetworkInterfaces.DisplayInterfaces();
             }
             else {
-                NetworkInterfaces.DisplayInterfaces();
-                Packet.CapturePcap(interfaceOptionValue);
+                PacketSniffer.SniffInterface(interfaceOptionValue, numOptionValue);
             }
-        }, interfaceOption);
+        }, interfaceOption, numOption);
 
         await rootCommand.InvokeAsync(args);
     }

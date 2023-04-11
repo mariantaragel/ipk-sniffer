@@ -10,15 +10,15 @@ public class NetworkInterfaces
         
         if (adapters.Length < 1)
         {
-            Console.WriteLine("No interfaces were found on this machine.");
+            Console.WriteLine("No network interfaces were found on this machine.");
             return;
         }
         
         foreach (var adapter in adapters)
         {
             Console.WriteLine(adapter.Name);
-            Console.WriteLine($"  Id ...................................... : {adapter.Id}");
             Console.WriteLine($"  Description ............................. : {adapter.Description}");
+            Console.WriteLine($"  Operational Status ...................... : {adapter.OperationalStatus}");
             Console.WriteLine($"  Network Interface Type .................. : {adapter.NetworkInterfaceType}");
         }
     }
