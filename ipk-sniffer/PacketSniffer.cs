@@ -1,4 +1,6 @@
-﻿using PacketDotNet;
+﻿using System.Net.NetworkInformation;
+using System.Text.RegularExpressions;
+using PacketDotNet;
 using SharpPcap;
 using SharpPcap.LibPcap;
 
@@ -8,38 +10,39 @@ public class PacketSniffer
 {
     private static int _packetIndex;
 
-    public static void SniffInterface(string interfaceName, int numOfPacketsToDisplay)
+    public static void SniffInterface(Options options)
     {
         var interfaces = LibPcapLiveDeviceList.Instance;
 
-        using var adapter = interfaces.SingleOrDefault(i => i.Interface.FriendlyName == interfaceName);
+        using var adapter = interfaces.SingleOrDefault(i => i.Interface.FriendlyName == options.InterfaceName);
         if (adapter == null) {
-            Console.Error.WriteLine($"Interface {interfaceName} not found.");
+            Console.Error.WriteLine($"Interface {options.InterfaceName} not found.");
             Environment.Exit(1);
         }
 
+        /*
         const string capFile = "tcp.pcapng";
         ICaptureDevice offlineAdapter = new CaptureFileReaderDevice(capFile);
         offlineAdapter.Open(DeviceModes.Promiscuous);
-        while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < numOfPacketsToDisplay) {
+        offlineAdapter.Filter = GetFilterString(options);
+        while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
             OnPacketArrival(pcap);
         }
+        */
 
-        /*
         const int readTimeoutMilliseconds = 1000;
         adapter.Open(DeviceModes.Promiscuous, read_timeout: readTimeoutMilliseconds);
 
-        while (adapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < numOfPacketsToDisplay) {
+        while (adapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
             OnPacketArrival(pcap);
         }
 
         adapter.Close();
-        */
     }
 
     private static void OnPacketArrival(PacketCapture pcap)
     {
-        var dateTime = pcap.Header.Timeval.Date;
+        var dateTime = pcap.Header.Timeval.Date.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
         var dataLen = pcap.Data.Length;
         var rawPacket = pcap.GetPacket();
 
@@ -50,14 +53,14 @@ public class PacketSniffer
 
         if (tcpPacket != null)
         {
-            var srcMac = ethernetPacket.SourceHardwareAddress.ToString().ToLower();
-            var dstMac = ethernetPacket.DestinationHardwareAddress.ToString().ToLower();
+            var srcMac = MacAddressToString(ethernetPacket.SourceHardwareAddress);
+            var dstMac = MacAddressToString(ethernetPacket.DestinationHardwareAddress);
             var srcIp = ipPacket.SourceAddress;
             var dstIp = ipPacket.DestinationAddress;
             int srcPort = tcpPacket.SourcePort;
             int dstPort = tcpPacket.DestinationPort;
 
-            Console.WriteLine($"timestamp: {DateTimeToRfc3339(dateTime)}\n" +
+            Console.WriteLine($"timestamp: {dateTime}\n" +
                               $"src MAC: {srcMac}\n" +
                               $"dst MAC: {dstMac}\n" +
                               $"frame length: {dataLen} bytes\n" +
@@ -71,48 +74,79 @@ public class PacketSniffer
         _packetIndex++;
     }
 
-    private static string DateTimeToRfc3339(DateTime dateTime)
+    private static string GetFilterString(Options options)
     {
-        var dateFullYear = dateTime.Year.ToString();
-        var dateMonth = IntToString(dateTime.Month);
-        var dateDay = IntToString(dateTime.Day);
-        var fullDate = dateFullYear + "-" + dateMonth + "-" + dateDay;
-        var timeHour = IntToString(dateTime.Hour);
-        var timeMinute = IntToString(dateTime.Minute);
-        var timeSecond = IntToString(dateTime.Second);
-        var secFrac = "." + dateTime.Millisecond;
-        var partialTime = timeHour + ":" + timeMinute + ":" + timeSecond + secFrac;
-        var timeOffset = "";
-        var fullTime = partialTime + timeOffset;
-        return fullDate + "T" + fullTime;
-    }
-
-    private static string IntToString(int num)
-    {
-        if (num < 10) {
-            return "0" + num;
+        var filterString = string.Empty;
+        if (options.TcpOption) {
+            filterString += "tcp";
+        }
+        if (options.UdpOption) {
+            filterString += "udp";
         }
 
-        return num.ToString();
+        return filterString;
+    }
+
+    private static string MacAddressToString(PhysicalAddress macAddress)
+    {
+        var macAddressString = macAddress.ToString().ToLower();
+        macAddressString = Regex.Replace(macAddressString, ".{2}", ":$0").Remove(0, 1);
+        return macAddressString;
     }
 
     private static void HexDump(byte[] bytes)
     {
-        var value = 0;
-        var offset = value.ToString("0x0000");
-        Console.Write(offset + ": ");
+        var offset = 0;
         for (var i = 1; i <= bytes.Length; i++)
         {
-            var hex = BitConverter.ToString(bytes[(i - 1)..i]);
-            if (i % 16 == 0)
+            var hex = BitConverter.ToString(bytes[(i - 1)..i]).ToLower();
+
+            switch (i % 16)
             {
-                Console.WriteLine(hex);
-                value += 16;
-                Console.Write(value.ToString("0000x0") + ": ");
-            }
-            else {
-                Console.Write(hex + " ");
+                case 0:
+                    Console.Write(" " + hex + " ");
+                    PrintChars(bytes[offset..i]);
+                    Console.WriteLine();
+                    offset += 16;
+                    break;
+                case 1:
+                    PrintOffset(offset);
+                    Console.Write(hex);
+                    break;
+                default:
+                    Console.Write(" " + hex);
+                    break;
             }
         }
+
+        var left = bytes.Length - offset;
+        var padRight = string.Empty.PadRight((3 * 16) - (3 * left - 1), ' ');
+        Console.Write(padRight);
+        PrintChars(bytes[offset..bytes.Length]);
+    }
+
+    private static void PrintChars(byte[] bytes)
+    {
+        for (var index = 0; index < bytes.Length; index++)
+        {
+            var b = bytes[index];
+            var c = Convert.ToChar(b);
+            
+            if (c is >= ' ' and <= '~') {
+                Console.Write(c);
+            }
+            else {
+                Console.Write(".");
+            }
+
+            if (index == 7) {
+                Console.Write(" ");
+            }
+        }
+    }
+
+    private static void PrintOffset(int offset)
+    {
+        Console.Write("0x" + offset.ToString("x4") + ": ");
     }
 }

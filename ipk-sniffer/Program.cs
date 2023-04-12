@@ -6,33 +6,20 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        Console.CancelKeyPress += new ConsoleCancelEventHandler(MyHandler);
+        Console.CancelKeyPress += MyHandler;
 
-        var interfaceOption = new Option<string?>(name: "--interface", description: "Interface to sniff")
+        var commandLineOptions = new CommandLineOptions();
+        var rootCommand = commandLineOptions.CreateRootCommand();
+
+        rootCommand.SetHandler(options =>
         {
-            ArgumentHelpName = "interface",
-            Arity = ArgumentArity.ZeroOrOne
-        };
-        interfaceOption.AddAlias("-i");
-
-        var numOption = new Option<int>(name: "-n", description: "Number of packets to display", getDefaultValue: () => 1)
-        {
-            ArgumentHelpName = "num"
-        };
-
-        var rootCommand = new RootCommand("Network sniffer");
-        rootCommand.AddOption(interfaceOption);
-        rootCommand.AddOption(numOption);
-
-        rootCommand.SetHandler((interfaceOptionValue, numOptionValue) =>
-        {
-            if (interfaceOptionValue == null) {
+            if (options.InterfaceName == null) {
                 NetworkInterfaces.DisplayInterfaces();
             }
             else {
-                PacketSniffer.SniffInterface(interfaceOptionValue, numOptionValue);
+                PacketSniffer.SniffInterface(options);
             }
-        }, interfaceOption, numOption);
+        }, new OptionBinder(commandLineOptions) );
 
         await rootCommand.InvokeAsync(args);
     }
