@@ -1,4 +1,5 @@
-﻿using System.Net.NetworkInformation;
+﻿using System.Net;
+using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using PacketDotNet;
 using SharpPcap;
@@ -20,16 +21,15 @@ public class PacketSniffer
             Environment.Exit(1);
         }
 
-        /*
-        const string capFile = "tcp.pcapng";
+        const string capFile = "icmpv4.pcap";
         ICaptureDevice offlineAdapter = new CaptureFileReaderDevice(capFile);
         offlineAdapter.Open(DeviceModes.Promiscuous);
-        offlineAdapter.Filter = GetFilterString(options);
+        offlineAdapter.Filter = "icmp";
         while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
             OnPacketArrival(pcap);
         }
-        */
 
+        /*
         const int readTimeoutMilliseconds = 1000;
         adapter.Open(DeviceModes.Promiscuous, read_timeout: readTimeoutMilliseconds);
 
@@ -38,6 +38,7 @@ public class PacketSniffer
         }
 
         adapter.Close();
+        */
     }
 
     private static void OnPacketArrival(PacketCapture pcap)
@@ -46,45 +47,51 @@ public class PacketSniffer
         var dataLen = pcap.Data.Length;
         var rawPacket = pcap.GetPacket();
 
-        var packet = Packet.ParsePacket(rawPacket.LinkLayerType, rawPacket.Data);
-        var ethernetPacket = packet.Extract<EthernetPacket>();
-        var ipPacket = packet.Extract<IPPacket>();
-        var tcpPacket = packet.Extract<TcpPacket>();
-
-        if (tcpPacket != null)
-        {
-            var srcMac = MacAddressToString(ethernetPacket.SourceHardwareAddress);
-            var dstMac = MacAddressToString(ethernetPacket.DestinationHardwareAddress);
-            var srcIp = ipPacket.SourceAddress;
-            var dstIp = ipPacket.DestinationAddress;
-            int srcPort = tcpPacket.SourcePort;
-            int dstPort = tcpPacket.DestinationPort;
-
-            Console.WriteLine($"timestamp: {dateTime}\n" +
-                              $"src MAC: {srcMac}\n" +
-                              $"dst MAC: {dstMac}\n" +
-                              $"frame length: {dataLen} bytes\n" +
-                              $"src IP: {srcIp}\n" +
-                              $"dst IP: {dstIp}\n" +
-                              $"src port: {srcPort}\n" +
-                              $"dst port: {dstPort}");
-            Console.WriteLine();
-            HexDump(rawPacket.Data);
+        if (rawPacket.LinkLayerType != LinkLayers.Ethernet) {
+            return;
         }
+        var packet = Packet.ParsePacket(rawPacket.LinkLayerType, rawPacket.Data);
+        var ethernetHeader = (EthernetPacket)packet;
+        var srcMac = MacAddressToString(ethernetHeader.SourceHardwareAddress);
+        var dstMac = MacAddressToString(ethernetHeader.DestinationHardwareAddress);
+
+        IPAddress? srcIp = null;
+        IPAddress? dstIp = null;
+        var internetPacket = packet.PayloadPacket;
+        if (packet.HasPayloadPacket) {
+            if (ethernetHeader.Type is EthernetType.IPv4 or EthernetType.IPv6) {
+                var internetHeader = (IPPacket)internetPacket;
+                srcIp = internetHeader.SourceAddress;
+                dstIp = internetHeader.DestinationAddress;
+            }
+        }
+
+        ushort? srcPort = null;
+        ushort? dstPort = null;
+        if (internetPacket.HasPayloadPacket) {
+            var transportPacket = internetPacket.PayloadPacket;
+            var transportHeader = (TransportPacket)transportPacket;
+            srcPort = transportHeader.SourcePort;
+            dstPort = transportHeader.DestinationPort;
+        }
+
+        PrintPacket(dateTime, srcMac, dstMac, dataLen, srcIp, dstIp, srcPort, dstPort, rawPacket);
         _packetIndex++;
     }
 
-    private static string GetFilterString(Options options)
+    private static void PrintPacket(string dateTime, string srcMac, string dstMac, int dataLen, IPAddress? srcIp, IPAddress? dstIp, ushort? srcPort, ushort? dstPort,
+        RawCapture rawPacket)
     {
-        var filterString = string.Empty;
-        if (options.TcpOption) {
-            filterString += "tcp";
-        }
-        if (options.UdpOption) {
-            filterString += "udp";
-        }
-
-        return filterString;
+        Console.WriteLine($"timestamp: {dateTime}\n" +
+                          $"src MAC: {srcMac}\n" +
+                          $"dst MAC: {dstMac}\n" +
+                          $"frame length: {dataLen} bytes\n" +
+                          $"src IP: {srcIp}\n" +
+                          $"dst IP: {dstIp}\n" +
+                          $"src port: {srcPort}\n" +
+                          $"dst port: {dstPort}");
+        Console.WriteLine();
+        HexDump(rawPacket.Data);
     }
 
     private static string MacAddressToString(PhysicalAddress macAddress)
