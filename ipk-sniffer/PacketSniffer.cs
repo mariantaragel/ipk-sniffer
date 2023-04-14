@@ -21,10 +21,10 @@ public class PacketSniffer
             Environment.Exit(1);
         }
 
-        const string capFile = "icmpv4.pcap";
+        const string capFile = "tcp.pcapng";
         ICaptureDevice offlineAdapter = new CaptureFileReaderDevice(capFile);
         offlineAdapter.Open(DeviceModes.Promiscuous);
-        offlineAdapter.Filter = "icmp";
+        offlineAdapter.Filter = FilterToString(options);
         while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
             OnPacketArrival(pcap);
         }
@@ -32,7 +32,7 @@ public class PacketSniffer
         /*
         const int readTimeoutMilliseconds = 1000;
         adapter.Open(DeviceModes.Promiscuous, read_timeout: readTimeoutMilliseconds);
-
+        adapter.Filter = "udp";
         while (adapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
             OnPacketArrival(pcap);
         }
@@ -41,9 +41,9 @@ public class PacketSniffer
         */
     }
 
-    private static void OnPacketArrival(PacketCapture pcap)
+    public static void OnPacketArrival(PacketCapture pcap)
     {
-        var dateTime = pcap.Header.Timeval.Date.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
+        var dateTime = pcap.Header.Timeval.Date.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
         var dataLen = pcap.Data.Length;
         var rawPacket = pcap.GetPacket();
 
@@ -58,9 +58,10 @@ public class PacketSniffer
         IPAddress? srcIp = null;
         IPAddress? dstIp = null;
         var internetPacket = packet.PayloadPacket;
+        IPPacket? internetHeader = null;
         if (packet.HasPayloadPacket) {
             if (ethernetHeader.Type is EthernetType.IPv4 or EthernetType.IPv6) {
-                var internetHeader = (IPPacket)internetPacket;
+                internetHeader = (IPPacket)internetPacket;
                 srcIp = internetHeader.SourceAddress;
                 dstIp = internetHeader.DestinationAddress;
             }
@@ -68,15 +69,24 @@ public class PacketSniffer
 
         ushort? srcPort = null;
         ushort? dstPort = null;
-        if (internetPacket.HasPayloadPacket) {
+        if (internetPacket.HasPayloadPacket && internetHeader?.Protocol != null) {
             var transportPacket = internetPacket.PayloadPacket;
-            var transportHeader = (TransportPacket)transportPacket;
-            srcPort = transportHeader.SourcePort;
-            dstPort = transportHeader.DestinationPort;
+            if (internetHeader.Protocol is ProtocolType.Tcp or ProtocolType.Udp)
+            {
+                var transportHeader = (TransportPacket)transportPacket;
+                srcPort = transportHeader.SourcePort;
+                dstPort = transportHeader.DestinationPort;
+            }
         }
 
         PrintPacket(dateTime, srcMac, dstMac, dataLen, srcIp, dstIp, srcPort, dstPort, rawPacket);
         _packetIndex++;
+    }
+
+    private static string FilterToString(Options options)
+    {
+        var filterString = string.Empty;
+        return filterString;
     }
 
     private static void PrintPacket(string dateTime, string srcMac, string dstMac, int dataLen, IPAddress? srcIp, IPAddress? dstIp, ushort? srcPort, ushort? dstPort,
