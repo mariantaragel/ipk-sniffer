@@ -13,35 +13,46 @@ public class PacketSniffer
 
     public static void SniffInterface(Options options)
     {
-        var interfaces = LibPcapLiveDeviceList.Instance;
+        using var adapter = GetInterface(options.InterfaceName);
 
-        using var adapter = interfaces.SingleOrDefault(i => i.Interface.FriendlyName == options.InterfaceName);
+#if DEBUG
+        const string capFile = "filter.pcapng";
+        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice(capFile);
+        offlineAdapter.Open(DeviceModes.Promiscuous);
+        var filter = new Filter();
+        filter.OptionsToString(options);
+        offlineAdapter.Filter = filter.FilterString;
+        while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) 
+        {
+            OnPacketArrival(pcap, options);
+        }
+#else
+        adapter.Open(DeviceModes.Promiscuous);
+        var filter = new Filter();
+        filter.OptionsToString(options);
+        adapter.Filter = filter.FilterString;
+        while (adapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
+            OnPacketArrival(pcap, options);
+        }
+        Console.WriteLine(adapter.Statistics.ToString());
+        adapter.Close();
+#endif
+    }
+
+    private static LibPcapLiveDevice GetInterface(string? interfaceName)
+    {
+        var interfaces = LibPcapLiveDeviceList.Instance;
+        var adapter = interfaces.SingleOrDefault(i => i.Interface.FriendlyName == interfaceName);
+        
         if (adapter == null) {
-            Console.Error.WriteLine($"Interface {options.InterfaceName} not found.");
+            Console.Error.WriteLine($"Interface {interfaceName} not found.");
             Environment.Exit(1);
         }
 
-        const string capFile = "tcp.pcapng";
-        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice(capFile);
-        offlineAdapter.Open(DeviceModes.Promiscuous);
-        offlineAdapter.Filter = FilterToString(options);
-        while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
-            OnPacketArrival(pcap);
-        }
-
-        /*
-        const int readTimeoutMilliseconds = 1000;
-        adapter.Open(DeviceModes.Promiscuous, read_timeout: readTimeoutMilliseconds);
-        adapter.Filter = "udp";
-        while (adapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
-            OnPacketArrival(pcap);
-        }
-
-        adapter.Close();
-        */
+        return adapter;
     }
 
-    public static void OnPacketArrival(PacketCapture pcap)
+    public static void OnPacketArrival(PacketCapture pcap, Options options)
     {
         var dateTime = pcap.Header.Timeval.Date.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
         var dataLen = pcap.Data.Length;
@@ -71,22 +82,26 @@ public class PacketSniffer
         ushort? dstPort = null;
         if (internetPacket.HasPayloadPacket && internetHeader?.Protocol != null) {
             var transportPacket = internetPacket.PayloadPacket;
-            if (internetHeader.Protocol is ProtocolType.Tcp or ProtocolType.Udp)
+            switch (internetHeader.Protocol)
             {
-                var transportHeader = (TransportPacket)transportPacket;
-                srcPort = transportHeader.SourcePort;
-                dstPort = transportHeader.DestinationPort;
+                case ProtocolType.Udp: case ProtocolType.Tcp:
+                    var transportHeader = (TransportPacket)transportPacket;
+                    srcPort = transportHeader.SourcePort;
+                    dstPort = transportHeader.DestinationPort;
+                    break;
+                case ProtocolType.IcmpV6 when options.MldOption:
+                    var mldPacket = (IcmpV6Packet)transportPacket;
+                    if ((int)mldPacket.Type is not (>= 130 and <= 132 or 143)) {
+                        return;
+                    }
+                    break;
             }
         }
 
+        Console.WriteLine(ethernetHeader);
         PrintPacket(dateTime, srcMac, dstMac, dataLen, srcIp, dstIp, srcPort, dstPort, rawPacket);
+        Console.WriteLine();
         _packetIndex++;
-    }
-
-    private static string FilterToString(Options options)
-    {
-        var filterString = string.Empty;
-        return filterString;
     }
 
     private static void PrintPacket(string dateTime, string srcMac, string dstMac, int dataLen, IPAddress? srcIp, IPAddress? dstIp, ushort? srcPort, ushort? dstPort,
@@ -140,6 +155,7 @@ public class PacketSniffer
         var padRight = string.Empty.PadRight((3 * 16) - (3 * left - 1), ' ');
         Console.Write(padRight);
         PrintChars(bytes[offset..bytes.Length]);
+        Console.WriteLine();
     }
 
     private static void PrintChars(byte[] bytes)

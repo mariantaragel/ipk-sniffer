@@ -20,15 +20,15 @@ public class CommandLineOptions
     {
         InterfaceOption = CreateInterfaceOption();
         NumOption = CreateNumOption();
-        TcpOption = CreateTcpOption();
-        UdpOption = CreateUdpOption();
+        TcpOption = CreateFlag("--tcp", "TCP", "Display TCP segments", "-t");
+        UdpOption = CreateFlag("--udp", "UDP", "Display UDP segments", "-u");
         PortOption = CreatePortOption();
-        Icmp4Option = CreateIcmp4Option();
-        Icmp6Option = CreateIcmp6Option();
-        ArpOption = CreateArpOption();
-        NdpOption = CreateNdpOption();
-        IgmpOption = CreateIgmpOption();
-        MldOption = CreateMldOption();
+        Icmp4Option = CreateFlag("--icmp4", "ICMPv4", "Display ICMPv4 packets", string.Empty);
+        Icmp6Option = CreateFlag("--icmp6", "ICMPv6", "Display ICMPv6 echo request/response", string.Empty);
+        ArpOption = CreateFlag("--arp", "ARP", "Display ARP frames", string.Empty);
+        NdpOption = CreateFlag("--ndp", "NDP", "Display ICMPv6 NDP packets", string.Empty);
+        IgmpOption = CreateFlag("--igmp", "IGMP", "Display IGMP packets", string.Empty);
+        MldOption = CreateFlag("--mld", "MLD", "Display ICMPv6 MLD packets", string.Empty);
     }
 
     public RootCommand CreateRootCommand()
@@ -48,16 +48,17 @@ public class CommandLineOptions
         return rootCommand;
     }
 
-    public static Option<int> CreateNumOption()
+    private static Option<int> CreateNumOption()
     {
-        var numOption = new Option<int>(name: "-n", description: "Number of packets to display", getDefaultValue: () => 1)
-        {
-            ArgumentHelpName = "num"
-        };
+        var numOption =
+            new Option<int>(name: "-n", description: "Number of packets to display", getDefaultValue: () => 1)
+            {
+                ArgumentHelpName = "num"
+            };
         return numOption;
     }
 
-    public static Option<int?> CreatePortOption()
+    private static Option<int?> CreatePortOption()
     {
         var portOption = new Option<int?>(name: "-p", description: "Filter TCP/UDP based on port number")
         {
@@ -66,7 +67,7 @@ public class CommandLineOptions
         return portOption;
     }
 
-    public static Option<string?> CreateInterfaceOption()
+    private static Option<string?> CreateInterfaceOption()
     {
         var interfaceOption = new Option<string?>(name: "--interface", description: "Interface to sniff")
         {
@@ -77,77 +78,15 @@ public class CommandLineOptions
         return interfaceOption;
     }
 
-    public static Option<bool> CreateTcpOption()
+    private static Option<bool> CreateFlag(string name, string helpName, string description, string alias)
     {
-        var tcpOption = new Option<bool>(name: "--tcp", description: "Display TCP segments")
+        var flagOption = new Option<bool>(name: name, description: description)
         {
-            ArgumentHelpName = "tcp"
+            ArgumentHelpName = helpName
         };
-        tcpOption.AddAlias("-t");
-        return tcpOption;
-    }
-
-    public static Option<bool> CreateUdpOption()
-    {
-        var tcpOption = new Option<bool>(name: "--udp", description: "Display UDP segments")
-        {
-            ArgumentHelpName = "UDP"
-        };
-        tcpOption.AddAlias("-u");
-        return tcpOption;
-    }
-
-    public static Option<bool> CreateIcmp4Option()
-    {
-        var icmp4Option = new Option<bool>(name: "--icmp4", description: "Display ICMPv4 packets")
-        {
-            ArgumentHelpName = "ICMPv4"
-        };
-        return icmp4Option;
-    }
-
-    public static Option<bool> CreateIcmp6Option()
-    {
-        var icmp6Option = new Option<bool>(name: "--icmp6", description: "Display ICMPv6 echo request/response")
-        {
-            ArgumentHelpName = "ICMPv6"
-        };
-        return icmp6Option;
-    }
-
-    public static Option<bool> CreateArpOption()
-    {
-        var arpOption = new Option<bool>(name: "--arp", description: "Display ARP frames")
-        {
-            ArgumentHelpName = "ARP"
-        };
-        return arpOption;
-    }
-
-    public static Option<bool> CreateNdpOption()
-    {
-        var ndpOption = new Option<bool>(name: "--ndp", description: "Display ICMPv6 NDP packets")
-        {
-            ArgumentHelpName = "NDP"
-        };
-        return ndpOption;
-    }
-
-    public static Option<bool> CreateIgmpOption()
-    {
-        var igmpOption = new Option<bool>(name: "--igmp", description: "Display IGMP packets")
-        {
-            ArgumentHelpName = "IGMP"
-        };
-        return igmpOption;
-    }
-
-    public static Option<bool> CreateMldOption()
-    {
-        var mldOption = new Option<bool>(name: "--mld", description: "Display MLD packets")
-        {
-            ArgumentHelpName = "MLD"
-        };
-        return mldOption;
+        if (alias != string.Empty) {
+            flagOption.AddAlias(alias);
+        }
+        return flagOption;
     }
 }
