@@ -1,8 +1,8 @@
 # IPK Projekt 2
-Cie¾om projektu je implementova paketovı sniffer, ktorı bude schopnı zachyti, filtova a zobrazi pakety na na špecifickom sieovom rozhraní.
+CieÄ¾om projektu je implementovaÅ¥ paketovÅ¥ sniffer, ktorÃ½ bude schopnÃ½ zachytiÅ¥, filtovaÅ¥ a zobraziÅ¥ pakety na Å¡pecifickom sieÅ¥ovom rozhranÃ­.
 
-## Štruktúra projektu
-Projek bol vypracovanı v jazyku C# a bol štrukturovanı do viacerich tried. Zákldnou triedou je `Program`, ktorá obasuje funkciu `Main`, ktorá je vstupnım bodom programu. Triedy `CommandLineOptions`, `OptionBinder` a `Options` s pomocou kninice `System.CommandLine` sprcuvávajú agrmunty príkazového riadku. Trieda `NetworkInterfaces` zobrazuje aktuálne sieové rozhrania. Trieda `PacketSniffer` a kninica `SharpPcap` zachytávajú pakety, následne ich filtrujú a analyzujú. Trieda `Filter` je pomocná trieda, krorá trasformuje vstupné argumenty na reazec, ktorı filtruje prichádzajúce pakety.
+## Å truktara projektu
+Projek bol vypracovanÃ½ v jazyku C# a bol Å¡trukturovanÃ½ do viacerich tried. ZÃ¡kldnou triedou je `Program`, ktorÃ¡ obasuje funkciu `Main`, ktorÃ¡ je vstupnÃ½m bodom programu. Triedy `CommandLineOptions`, `OptionBinder` a `Options` s pomocou kniÅ¾nice `System.CommandLine` sprcuvÃ¡vajÃº argumenty prÃ­kazovÃ©ho riadku. Trieda `NetworkInterfaces` zobrazuje aktuÃ¡lne sieÅ¥ovÃ© rozhrania. Trieda `PacketSniffer` a kniÅ¾nica `SharpPcap` zachytÃ¡vajÃº pakety, nÃ¡sledne ich filtrujÃº a analyzujÃº. Trieda `Filter` je pomocnÃ¡ trieda, krorÃ¡ trasformuje vstupnÃ© argumenty na reÅ¥azec, ktorÃ½ filtruje prichÃ¡dzajÃºce pakety.
 
 ## UML Diagram
 ```mermaid
@@ -28,14 +28,14 @@ class Filter
 	Filter : + OptionsToString()
 ```
 
-## Teória
-V nasledujúcej èasti struène zhrniem teóriu nutnú k pochopeniu implementovanej funkcionality. Zameriam sa hlavne na to èo je to paketovı sniffer a ako sa dá poui. Vychádza budem zo zdroja [1].
+## TeÃ³ria
+V nasledujÃºcej Äasti struÄne zhrniem teÃ³riu nutnÃº k pochopeniu implementovanej funkcionality. Zameriam sa hlavne na to Äo je to paketovÃ½ sniffer a ako sa dÃ¡ pouÅ¾iÅ¥. VychÃ¡dzaÅ¥ budem zo zdroja [1].
 
-### Paketovı sniffer
-Paketovı sniffer je vo¾ne dostupnı nástroj, ktorı dokáe zachyti a analyzova pakety s konkrétneho sieového rozhrania. Jednım z najznámejších je Wireshark.
+### PaketovÃ½ sniffer
+PaketovÃ½ sniffer je voÄ¾ne dostupnÃ½ nÃ¡stroj, ktorÃ½ dokÃ¡Å¾e zachytiÅ¥ a analyzovaÅ¥ pakety s konkrÃ©tneho sieÅ¥ovÃ©ho rozhrania. JednÃ½m z najznÃ¡mejÅ¡Ã­ch je Wireshark.
 
-### Bezpeènos
-Zachytávanie paketov predsatavuje potenciálne bezpeènostné riziká, pretoe pakety posielané po sieti môu obsahova, citlivé informácie, ako napríklad heslá, osobné informácie, súkromné správy a iné. Keïe je paketovı sniffer pasívny nástroj, nevkladá pakety do sieového kanálu, je ako detekovate¾nı. To znamená, e ak posielame dáta po sieti, musíme akceptova monos, e si útoèník môe urobi kópiu našeho paketu. Najlepšou obranou proti paketovım snifferom je kryptografia a šifrovanie paketov.
+### BezpeÄnosÅ¥
+ZachytÃ¡vanie paketov predsatavuje potenciÃ¡lne bezpeÄnostnÃ© rizikÃ¡, pretoÅ¾e pakety posielanÃ© po sieti mÃ´Å¾u obsahovaÅ¥, citlivÃ© informÃ¡cie, ako naprÃ­klad heslÃ¡, osobnÃ© informÃ¡cie, sÃºkromnÃ© sprÃ¡vy a inÃ©. KeÄÅ¾e je paketovÃ½ sniffer pasÃ­vny nÃ¡stroj, nevkladÃ¡ pakety do sieÅ¥ovÃ©ho kanÃ¡lu, je Å¥aÅ¾ko detekovateÄ¾nÃ½. To znamenÃ¡, Å¾e ak posielame dÃ¡ta po sieti, musÃ­me akceptovaÅ¥ moÅ¾nosÅ¥, Å¾e si ÃºtoÄnÃ­k mÃ´Å¾e urobiÅ¥ kÃ³piu naÅ¡eho paketu. NajlepÅ¡ou obranou proti paketovÃ½m snifferom je kryptografia a Å¡ifrovanie paketov.
 
 ## Testovanie
 
