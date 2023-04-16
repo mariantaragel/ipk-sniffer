@@ -54,17 +54,15 @@ public class PacketSniffer
 
     public static void OnPacketArrival(PacketCapture pcap, Options options)
     {
-        var dateTime = pcap.Header.Timeval.Date.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
-        var dataLen = pcap.Data.Length;
-        var rawPacket = pcap.GetPacket();
+        var (dateTime, dataLen) = GetDateTimeAndLen(pcap);
 
+        var rawPacket = pcap.GetPacket();
         if (rawPacket.LinkLayerType != LinkLayers.Ethernet) {
             return;
         }
         var packet = Packet.ParsePacket(rawPacket.LinkLayerType, rawPacket.Data);
         var ethernetHeader = (EthernetPacket)packet;
-        var srcMac = MacAddressToString(ethernetHeader.SourceHardwareAddress);
-        var dstMac = MacAddressToString(ethernetHeader.DestinationHardwareAddress);
+        var (srcMac, dstMac) = GetMacAddress(ethernetHeader);
 
         IPAddress? srcIp = null;
         IPAddress? dstIp = null;
@@ -102,6 +100,20 @@ public class PacketSniffer
         PrintPacket(dateTime, srcMac, dstMac, dataLen, srcIp, dstIp, srcPort, dstPort, rawPacket);
         Console.WriteLine();
         _packetIndex++;
+    }
+
+    public static (string srcMac, string dstMac) GetMacAddress(EthernetPacket ethernetHeader)
+    {
+        var srcMac = MacAddressToString(ethernetHeader.SourceHardwareAddress);
+        var dstMac = MacAddressToString(ethernetHeader.DestinationHardwareAddress);
+        return (srcMac, dstMac);
+    }
+
+    public static (string dateTime, int dataLen) GetDateTimeAndLen(PacketCapture pcap)
+    {
+        var dateTime = pcap.Header.Timeval.Date.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
+        var dataLen = pcap.Data.Length;
+        return (dateTime, dataLen);
     }
 
     private static void PrintPacket(string dateTime, string srcMac, string dstMac, int dataLen, IPAddress? srcIp, IPAddress? dstIp, ushort? srcPort, ushort? dstPort,
