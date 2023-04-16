@@ -13,15 +13,13 @@ public class PacketSniffer
 
     public static void SniffInterface(Options options)
     {
+        options = CorrectOptions(options);
         using var adapter = GetInterface(options.InterfaceName);
 
 #if DEBUG
-        const string capFile = "filter.pcapng";
+        const string capFile = "filter1.pcapng";
         ICaptureDevice offlineAdapter = new CaptureFileReaderDevice(capFile);
         offlineAdapter.Open(DeviceModes.Promiscuous);
-        var filter = new Filter();
-        filter.OptionsToString(options);
-        offlineAdapter.Filter = filter.FilterString;
         while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) 
         {
             OnPacketArrival(pcap, options);
@@ -68,11 +66,19 @@ public class PacketSniffer
         IPAddress? dstIp = null;
         var internetPacket = packet.PayloadPacket;
         IPPacket? internetHeader = null;
-        if (packet.HasPayloadPacket) {
-            if (ethernetHeader.Type is EthernetType.IPv4 or EthernetType.IPv6) {
-                internetHeader = (IPPacket)internetPacket;
-                srcIp = internetHeader.SourceAddress;
-                dstIp = internetHeader.DestinationAddress;
+        if (packet.HasPayloadPacket)
+        {
+            switch (ethernetHeader.Type)
+            {
+                case EthernetType.IPv4 or EthernetType.IPv6:
+                    internetHeader = (IPPacket)internetPacket;
+                    srcIp = internetHeader.SourceAddress;
+                    dstIp = internetHeader.DestinationAddress;
+                    break;
+                case EthernetType.Arp when options.ArpOption:
+                    break;
+                default:
+                    return;
             }
         }
 
@@ -82,17 +88,46 @@ public class PacketSniffer
             var transportPacket = internetPacket.PayloadPacket;
             switch (internetHeader.Protocol)
             {
-                case ProtocolType.Udp: case ProtocolType.Tcp:
+                case ProtocolType.Udp when options.UdpOption: case ProtocolType.Tcp when options.TcpOption:
                     var transportHeader = (TransportPacket)transportPacket;
                     srcPort = transportHeader.SourcePort;
                     dstPort = transportHeader.DestinationPort;
+                    if (options.PortOption != null) {
+                        if (srcPort != options.PortOption && dstPort != options.PortOption) {
+                            return;
+                        }
+                    }
                     break;
-                case ProtocolType.IcmpV6 when options.MldOption:
-                    var mldPacket = (IcmpV6Packet)transportPacket;
-                    if ((int)mldPacket.Type is not (>= 130 and <= 132 or 143)) {
+                case ProtocolType.IcmpV6:
+                    if (options is { Icmp6Option: false, MldOption: true, NdpOption: false }) {
+                        var mldPacket = (IcmpV6Packet)transportPacket;
+                        if ((int)mldPacket.Type is not (>= 130 and <= 132 or 143)) {
+                            return;
+                        }
+                    }
+                    else if (options is { Icmp6Option: false, MldOption: false, NdpOption: true }) {
+                        var ndpPacket = (IcmpV6Packet)transportPacket;
+                        if ((int)ndpPacket.Type is not (>= 133 and <= 137)) {
+                            return;
+                        }
+                    }
+                    else if (options is { Icmp6Option: false, MldOption: true, NdpOption: true }) {
+                        var icmpV6Packet = (IcmpV6Packet)transportPacket;
+                        if ((int)icmpV6Packet.Type is not ((>= 130 and <= 137) or 143)) {
+                            return;
+                        }
+                    }
+                    else if (options.Icmp6Option) { }
+                    else {
                         return;
                     }
                     break;
+                case ProtocolType.Igmp when options.IgmpOption:
+                    break;
+                case ProtocolType.Icmp when options.Icmp4Option:
+                    break;
+                default:
+                    return;
             }
         }
 
@@ -100,6 +135,28 @@ public class PacketSniffer
         PrintPacket(dateTime, srcMac, dstMac, dataLen, srcIp, dstIp, srcPort, dstPort, rawPacket);
         Console.WriteLine();
         _packetIndex++;
+    }
+
+    private static Options CorrectOptions(Options options)
+    {
+        if (options is { PortOption: { }, TcpOption: false, UdpOption: false })
+        {
+            options.TcpOption = true;
+            options.UdpOption = true;
+        }
+
+        if (options is { MldOption: false, ArpOption: false, Icmp4Option: false, Icmp6Option: false, IgmpOption: false, NdpOption: false, TcpOption: false, UdpOption: false })
+        {
+            options.MldOption = true;
+            options.NdpOption = true;
+            options.TcpOption = true;
+            options.UdpOption = true;
+            options.ArpOption = true;
+            options.Icmp4Option = true;
+            options.Icmp6Option = true;
+            options.IgmpOption = true;
+        }
+        return options;
     }
 
     public static (string srcMac, string dstMac) GetMacAddress(EthernetPacket ethernetHeader)
