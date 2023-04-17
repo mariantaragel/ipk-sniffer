@@ -10,39 +10,27 @@ namespace ipk_sniffer;
 public class PacketSniffer
 {
     private static int _packetIndex;
+    private static Options _options = new();
+    private static LibPcapLiveDevice? _adapter;
 
     public static void SniffInterface(Options options)
     {
-        options = CorrectOptions(options);
-        using var adapter = GetInterface(options.InterfaceName);
-
-#if DEBUG
-        const string capFile = "filter1.pcapng";
-        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice(capFile);
-        offlineAdapter.Open(DeviceModes.Promiscuous);
-        while (offlineAdapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) 
-        {
-            OnPacketArrival(pcap, options);
-        }
-#else
-        adapter.Open(DeviceModes.Promiscuous);
-        var filter = new Filter();
-        filter.OptionsToString(options);
-        adapter.Filter = filter.FilterString;
-        while (adapter.GetNextPacket(out var pcap) == GetPacketStatus.PacketRead && _packetIndex < options.NumOfPacketsToDisplay) {
-            OnPacketArrival(pcap, options);
-        }
-        Console.WriteLine(adapter.Statistics.ToString());
-        adapter.Close();
-#endif
+        _options = CorrectOptions(options);
+        _adapter = GetInterface(_options.InterfaceName);
+        _adapter.OnPacketArrival += OnPacketArrival;
+        _adapter.Open(DeviceModes.Promiscuous);
+        _adapter.Capture();
+        Console.WriteLine(_adapter.Statistics.ToString());
+        _adapter.Close();
     }
 
     private static LibPcapLiveDevice GetInterface(string? interfaceName)
     {
         var interfaces = LibPcapLiveDeviceList.Instance;
         var adapter = interfaces.SingleOrDefault(i => i.Interface.FriendlyName == interfaceName);
-        
-        if (adapter == null) {
+
+        if (adapter == null)
+        {
             Console.Error.WriteLine($"Interface {interfaceName} not found.");
             Environment.Exit(1);
         }
@@ -50,12 +38,13 @@ public class PacketSniffer
         return adapter;
     }
 
-    public static void OnPacketArrival(PacketCapture pcap, Options options)
+    public static void OnPacketArrival(object sender, PacketCapture pcap)
     {
         var (dateTime, dataLen) = GetDateTimeAndLen(pcap);
 
         var rawPacket = pcap.GetPacket();
-        if (rawPacket.LinkLayerType != LinkLayers.Ethernet) {
+        if (rawPacket.LinkLayerType != LinkLayers.Ethernet)
+        {
             return;
         }
         var packet = Packet.ParsePacket(rawPacket.LinkLayerType, rawPacket.Data);
@@ -75,7 +64,7 @@ public class PacketSniffer
                     srcIp = internetHeader.SourceAddress;
                     dstIp = internetHeader.DestinationAddress;
                     break;
-                case EthernetType.Arp when options.ArpOption:
+                case EthernetType.Arp when _options.ArpOption:
                     break;
                 default:
                     return;
@@ -84,57 +73,72 @@ public class PacketSniffer
 
         ushort? srcPort = null;
         ushort? dstPort = null;
-        if (internetPacket.HasPayloadPacket && internetHeader?.Protocol != null) {
+        if (internetPacket.HasPayloadPacket && internetHeader?.Protocol != null)
+        {
             var transportPacket = internetPacket.PayloadPacket;
             switch (internetHeader.Protocol)
             {
-                case ProtocolType.Udp when options.UdpOption: case ProtocolType.Tcp when options.TcpOption:
+                case ProtocolType.Udp when _options.UdpOption:
+                case ProtocolType.Tcp when _options.TcpOption:
                     var transportHeader = (TransportPacket)transportPacket;
                     srcPort = transportHeader.SourcePort;
                     dstPort = transportHeader.DestinationPort;
-                    if (options.PortOption != null) {
-                        if (srcPort != options.PortOption && dstPort != options.PortOption) {
+                    if (_options.PortOption != null)
+                    {
+                        if (srcPort != _options.PortOption && dstPort != _options.PortOption)
+                        {
                             return;
                         }
                     }
                     break;
                 case ProtocolType.IcmpV6:
-                    if (options is { Icmp6Option: false, MldOption: true, NdpOption: false }) {
+                    if (_options is { Icmp6Option: false, MldOption: true, NdpOption: false })
+                    {
                         var mldPacket = (IcmpV6Packet)transportPacket;
-                        if ((int)mldPacket.Type is not (>= 130 and <= 132 or 143)) {
+                        if ((int)mldPacket.Type is not (>= 130 and <= 132 or 143))
+                        {
                             return;
                         }
                     }
-                    else if (options is { Icmp6Option: false, MldOption: false, NdpOption: true }) {
+                    else if (_options is { Icmp6Option: false, MldOption: false, NdpOption: true })
+                    {
                         var ndpPacket = (IcmpV6Packet)transportPacket;
-                        if ((int)ndpPacket.Type is not (>= 133 and <= 137)) {
+                        if ((int)ndpPacket.Type is not (>= 133 and <= 137))
+                        {
                             return;
                         }
                     }
-                    else if (options is { Icmp6Option: false, MldOption: true, NdpOption: true }) {
+                    else if (_options is { Icmp6Option: false, MldOption: true, NdpOption: true })
+                    {
                         var icmpV6Packet = (IcmpV6Packet)transportPacket;
-                        if ((int)icmpV6Packet.Type is not ((>= 130 and <= 137) or 143)) {
+                        if ((int)icmpV6Packet.Type is not ((>= 130 and <= 137) or 143))
+                        {
                             return;
                         }
                     }
-                    else if (options.Icmp6Option) { }
-                    else {
+                    else if (_options.Icmp6Option) { }
+                    else
+                    {
                         return;
                     }
                     break;
-                case ProtocolType.Igmp when options.IgmpOption:
+                case ProtocolType.Igmp when _options.IgmpOption:
                     break;
-                case ProtocolType.Icmp when options.Icmp4Option:
+                case ProtocolType.Icmp when _options.Icmp4Option:
                     break;
                 default:
                     return;
             }
         }
 
-        Console.WriteLine(ethernetHeader);
         PrintPacket(dateTime, srcMac, dstMac, dataLen, srcIp, dstIp, srcPort, dstPort, rawPacket);
-        Console.WriteLine();
         _packetIndex++;
+        if (_packetIndex != _options.NumOfPacketsToDisplay) {
+            Console.WriteLine();
+            return;
+        }
+        _adapter?.Close();
+        Environment.Exit(0);
     }
 
     private static Options CorrectOptions(Options options)
@@ -233,15 +237,18 @@ public class PacketSniffer
         {
             var b = bytes[index];
             var c = Convert.ToChar(b);
-            
-            if (c is >= ' ' and <= '~') {
+
+            if (c is >= ' ' and <= '~')
+            {
                 Console.Write(c);
             }
-            else {
+            else
+            {
                 Console.Write(".");
             }
 
-            if (index == 7) {
+            if (index == 7)
+            {
                 Console.Write(" ");
             }
         }

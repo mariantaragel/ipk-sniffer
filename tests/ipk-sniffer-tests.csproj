@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ipk-sniffer\ipk-sniffer.csproj" />
+    <ProjectReference Include="..\src\ipk-sniffer.csproj" />
   </ItemGroup>
 
 </Project>

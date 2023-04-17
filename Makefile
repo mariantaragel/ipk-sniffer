@@ -1,13 +1,16 @@
 all: build publish
 
 build:
-	dotnet build ipk-sniffer/ipk-sniffer.csproj
+	dotnet build src/ipk-sniffer.csproj
 
 publish:
-	dotnet publish ipk-sniffer/ipk-sniffer.csproj -c Release -o .
+	dotnet publish src/ipk-sniffer.csproj -c Release -o .
+
+tests:
+	dotnet build src/ipk-sniffer-tests.csproj
 
 clean:
-	rm -r ipk-sniffer/bin
-	rm -r ipk-sniffer/obj
+	rm -r src/bin
+	rm -r src/obj
 	rm ipk-sniffer
 	rm *.pdb
