@@ -20,7 +20,7 @@ public class SnifferDumpTests
         var (dateTime, dataLen) = PacketSniffer.GetDateTimeAndLen(pcap);
         
         // Verify
-        Assert.Equal("2020-07-23T02:05:24.234Z", dateTime);
+        Assert.Equal("2020-07-23T04:05:24.234+02:00", dateTime);
         Assert.Equal(66, dataLen);
     }
 

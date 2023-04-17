@@ -18,7 +18,13 @@ public class PacketSniffer
         _options = CorrectOptions(options);
         _adapter = GetInterface(_options.InterfaceName);
         _adapter.OnPacketArrival += OnPacketArrival;
-        _adapter.Open(DeviceModes.Promiscuous);
+        try {
+            _adapter.Open(DeviceModes.Promiscuous);
+        }
+        catch (PcapException e) {
+            Console.WriteLine(e);
+            Environment.Exit(1);
+        }
         _adapter.Capture();
         Console.WriteLine(_adapter.Statistics.ToString());
         _adapter.Close();
@@ -172,9 +178,17 @@ public class PacketSniffer
 
     public static (string dateTime, int dataLen) GetDateTimeAndLen(PacketCapture pcap)
     {
-        var dateTime = pcap.Header.Timeval.Date.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
+        var dateTime = DateTimeToRcf3339(pcap.Header.Timeval.Date);
         var dataLen = pcap.Data.Length;
         return (dateTime, dataLen);
+    }
+
+    private static string DateTimeToRcf3339(DateTime dateTime)
+    {
+        if (dateTime.Kind == DateTimeKind.Utc) {
+            dateTime = TimeZoneInfo.ConvertTime(dateTime, TimeZoneInfo.Local);
+        }
+        return dateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK");
     }
 
     private static void PrintPacket(string dateTime, string srcMac, string dstMac, int dataLen, IPAddress? srcIp, IPAddress? dstIp, ushort? srcPort, ushort? dstPort,
