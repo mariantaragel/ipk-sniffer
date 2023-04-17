@@ -20,10 +20,26 @@ class Options
 	Options : + IgmpOption
 	Options : + MldOption
 class OptionBinder
+	OptionBinder : + OptionBinder()
+class CommandLineOptions
+	CommandLineOptions : + CommandLineOptions()
+	CommandLineOptions : + CreateRootCommand()
 class Program
     Program : + Main()
 class NetworkInterfaces
 	NetworkInterfaces : + DisplayInterfaces()
+class PacketSniffer
+	PacketSniffer : + SniffInterface()
+	PacketSniffer : + OnPacketArrival()
+	PacketSniffer : + GetMacAddress()
+	PacketSniffer : + GetDateTimeAndLen()
+Program -- PacketSniffer
+Program -- NetworkInterfaces
+Program -- CommandLineOptions
+Program -- OptionBinder
+OptionBinder -- CommandLineOptions
+OptionBinder -- Options
+PacketSniffer -- Options
 ```
 
 ## Teória
