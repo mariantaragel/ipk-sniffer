@@ -52,7 +52,7 @@ Paketový sniffer je voľne dostupný nástroj, ktorý dokáže zachytiť a anal
 Zachytávanie paketov predstavuje potenciálne bezpečnostné riziká, pretože pakety posielané po sieti môžu obsahovať, citlivé informácie, ako napríklad heslá, osobné informácie, súkromné správy a iné. Keďže je paketový sniffer pasívny nástroj, nevkladá pakety do sieťového kanálu, je ťažko detekovateľný. To znamená, že ak posielame dáta po sieti, musíme akceptovať možnosť, že si útočník môže urobiť kópiu nášho paketu. Najlepšou obranou proti paketovým snifferom je kryptografia a šifrovanie paketov.
 
 ## Testovanie
-Testovanie bolo uskutočnené pomocou automatizovaných testov v prostredí Xunit. Implementované testy sa nachádzajú v zložke tests v ktorej bol zavolaný príkaz `dotnet test`. Aplikácia bola testovaná v offline režime, to znamená, že sieťovú komunikáciu čítala z .pcap súborov, ktoré sa nachádzajú v zložke pcap.
+Testovanie bolo uskutočnené pomocou automatizovaných testov v prostredí Xunit. Implementované testy sa nachádzajú v zložke tests v ktorej bol zavolaný príkaz `dotnet test`. Aplikácia bola testovaná v offline režime, to znamená, že sieťovú komunikáciu čítala z .pcap súborov, ktoré sa nachádzajú v zložke pcap. Overovalo sa správne prečítanie dátumu, času, veľkosti paketu, portov, MAC adries a IP adries.
 
 Výstup z testovania:
 ```
@@ -71,7 +71,7 @@ A total of 1 test files matched the specified pattern.
 Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 32 ms - /home/ipk/IPK-Projekt-2/tests/bin/Debug/net6.0/ipk-sniffer-tests.dll (net6.0)
 ```
 
-V druhej fáze testovania som sa zameral na správne filtrovanie paketov. K tomuto účelu bol vytvorený skript `test.py`, ktorý posiela na loopback adresu jednotlivé typy paketov. V tabuľke nižšie je prehľadne ukázaná s akými vstupnými argumentami bol program ipk-sniffer spustený, aké pakety odoslal skript, očakávané priate a vyfiltrované pakety.
+V druhej fáze testovania som sa zameral na správne filtrovanie paketov. K tomuto účelu bol vytvorený skript `test.py`, ktorý posiela na loopback adresu jednotlivé typy paketov. V tabuľke nižšie je prehľadne ukázané s akými vstupnými argumentami bol program `ipk-sniffer` spustený, aké pakety odoslal skript a ktoré z nich majú byť odfiltrované a ktoré sa majú prijať.
 
 ```
 +----------------+-------------------------+------------------------------------+------------------+-----------------+
