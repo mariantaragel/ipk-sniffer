@@ -12,7 +12,7 @@ public class SnifferDumpTests
     public void Test_Get_DateTime_And_DataLen()
     {
         // Setup
-        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("tcp.pcapng");
+        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("../../../../pcap/tcp.pcapng");
         offlineAdapter.Open(DeviceModes.Promiscuous);
 
         // Exercise
@@ -28,7 +28,7 @@ public class SnifferDumpTests
     public void Test_Get_MacAddress()
     {
         // Setup
-        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("udp.pcapng");
+        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("../../../../pcap/udp.pcapng");
         offlineAdapter.Open(DeviceModes.Promiscuous);
 
         // Exercise
@@ -47,7 +47,7 @@ public class SnifferDumpTests
     public void Test_Get_Ipv4Address()
     {
         // Setup
-        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("icmpv4.pcap");
+        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("../../../../pcap/icmpv4.pcap");
         offlineAdapter.Open(DeviceModes.Promiscuous);
 
         // Exercise
@@ -67,7 +67,7 @@ public class SnifferDumpTests
     public void Test_Get_Ipv6Address()
     {
         // Setup
-        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("icmpv6.pcap");
+        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("../../../../pcap/icmpv6.pcap");
         offlineAdapter.Open(DeviceModes.Promiscuous);
 
         // Exercise
@@ -87,7 +87,7 @@ public class SnifferDumpTests
     public void Test_Get_Port()
     {
         // Setup
-        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("tcp.pcapng");
+        ICaptureDevice offlineAdapter = new CaptureFileReaderDevice("../../../../pcap/tcp.pcapng");
         offlineAdapter.Open(DeviceModes.Promiscuous);
 
         // Exercise
